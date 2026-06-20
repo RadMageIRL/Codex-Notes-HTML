@@ -1,6 +1,8 @@
 # Codex-Notes-HTML
 A lightweight, single-file, local-first note-taking application designed for speed, privacy, and simplicity. Codex runs entirely in your browser without requiring a backend, server, or cloud account.
 
+<img width="3824" height="1886" alt="image" src="https://github.com/user-attachments/assets/2cbb7190-df6f-4f3e-b3fc-1bc02ba15978" />
+
 ### Key Features
 
 *   **Single-File Architecture**: Everything (HTML, CSS, JS) is contained within one file. No installation or complex setup required[cite: 1].
