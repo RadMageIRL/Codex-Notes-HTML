@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CODEX — Notes</title>
+<title>CODEX - Notes</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- Prism.js syntax highlighting -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet">
@@ -34,7 +34,7 @@
     --text2:     #9a9591;
     --text3:     #5a5650;
     --danger:    #c06060;
-    --sidebar-w: 260px;
+    --sidebar-w: 260px; /* overridden by JS sidebar resize */
     --toolbar-h: 44px;
   }
 
@@ -65,7 +65,7 @@
   body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; overflow:hidden; font-size:14px; }
 
   /* ── SIDEBAR ── */
-  #sidebar { width:var(--sidebar-w); min-width:var(--sidebar-w); background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  #sidebar { width:var(--sidebar-w); min-width:180px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden;  height:100vh; overflow:hidden; }
   #sidebar-header { padding:18px 16px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
   .brand { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:2px; }
   .brand span { font-style:italic; font-weight:400; color:var(--text2); font-size:11px; display:block; letter-spacing:3px; margin-top:-3px; font-family:'JetBrains Mono',monospace; }
@@ -124,7 +124,7 @@
   #drag-ghost.visible { display:flex; }
   #drag-ghost::before { content:'≡'; font-size:14px; opacity:.6; }
 
-  /* reorder drop indicator — NO animation to prevent flash */
+  /* reorder drop indicator - NO animation to prevent flash */
   .note-drop-indicator {
     height: 2px;
     background: var(--accent);
@@ -254,7 +254,7 @@
   #sort-bar .sort-spacer { flex: 1; }
 
   /* ── MAIN ── */
-  #main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+  #main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); height:100vh; min-width:0; }
   #editor-toolbar { height:var(--toolbar-h); background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 12px; gap:2px; flex-shrink:0; flex-wrap:nowrap; overflow-x:auto; }
   .tb-group { display:flex; align-items:center; gap:1px; padding:0 6px; border-right:1px solid var(--border); flex-shrink:0; }
   .tb-group:last-child { border-right:none; }
@@ -300,7 +300,7 @@
   #editor-wrap::-webkit-scrollbar { width:6px; }
   #editor-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
 
-  /* line number gutter — absolute positioning for pixel-perfect alignment */
+  /* line number gutter - absolute positioning for pixel-perfect alignment */
   #line-gutter {
     display: none;
     position: relative;
@@ -349,7 +349,7 @@
   #editor pre div, #editor pre p { display:inline; }
   #editor pre br { display:none; }
   #editor pre code { background:none; padding:14px 16px; font-size:12px; display:block; line-height:1.7; overflow-x:auto; }
-  /* Prism overrides — keep our dark theme consistent */
+  /* Prism overrides - keep our dark theme consistent */
   #editor pre[class*="language-"], #editor code[class*="language-"] { background:none; text-shadow:none; font-family:'JetBrains Mono',monospace; font-size:12px; }
   /* language badge + copy button strip */
   .code-header { display:flex; align-items:center; justify-content:space-between;
@@ -466,7 +466,7 @@
   .hv-tab:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
 
   /* export menu */
-  #export-menu { position:absolute; right:0; top:100%; background:var(--surface); border:1px solid var(--border); border-radius:7px; box-shadow:0 10px 30px rgba(0,0,0,.5); z-index:50; min-width:160px; padding:4px; margin-top:4px; display:none; }
+  #export-menu { position:fixed; background:var(--surface); border:1px solid var(--border); border-radius:7px; box-shadow:0 14px 40px rgba(0,0,0,.6); z-index:300; min-width:180px; padding:4px; display:none; }
   #export-menu.open { display:block; animation:bannerSlide .15s ease; }
   .em-item { display:block; width:100%; background:none; border:none; color:var(--text2); font-family:'JetBrains Mono',monospace; font-size:11px; padding:8px 12px; text-align:left; cursor:pointer; border-radius:5px; transition:background .1s,color .1s; }
   .em-item:hover { background:var(--surface3); color:var(--accent); }
@@ -542,6 +542,197 @@
   #editor .checklist-item .cl-text { flex:1; outline:none; }
   #editor ul.checklist { padding-left:0; margin:6px 0; list-style:none; }
 
+  /* ── DIFF PANEL ── */
+
+  #editor-zone {
+    display:flex; flex-direction:column; overflow:hidden;
+    /* height set via inline style when diff open; flex:1 when closed */
+    flex:1 1 auto; min-height:0;
+  }
+  #diff-resize-handle {
+    display:none; height:6px; flex-shrink:0; cursor:ns-resize;
+    background:var(--border); position:relative; z-index:10;
+  }
+  #diff-resize-handle:hover, #diff-resize-handle.dragging { background:var(--accent); }
+  #diff-resize-handle::after {
+    content:''; position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    width:40px; height:2px; border-radius:2px; background:var(--text2);
+  }
+  #diff-resize-handle.open { display:block; }
+  #diff-panel {
+    display:none; flex-direction:column;
+    border-top:2px solid var(--accent);
+    background:var(--bg); overflow:hidden;
+    flex:1 1 0; min-height:0;
+  }
+  #diff-panel.open { display:flex; }
+  #diff-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #diff-toolbar .diff-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--accent);
+    letter-spacing: 1px; font-weight: 700;
+  }
+  #diff-toolbar .diff-spacer { flex: 1; }
+  .diff-mode-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; color: var(--text3); cursor: pointer;
+    transition: all .12s; letter-spacing: .5px;
+  }
+  .diff-mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .diff-mode-btn.active { background: var(--accent); color: #0d0d0f;
+    border-color: var(--accent); font-weight: 700; }
+  #diff-body {
+    display: flex; flex: 1 1 0;
+    min-height: 80px; overflow: hidden;
+  }
+  /* left / right source panes */
+  .diff-source {
+    flex: 1; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border); min-width: 0;
+  }
+  .diff-source:last-child { border-right: none; }
+  .diff-source-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px; background: var(--surface2);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  }
+  .diff-source-header label { color: var(--text3); letter-spacing: 1px; }
+  .diff-src-select {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--accent); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; padding: 2px 5px; border-radius: 3px;
+    outline: none; cursor: pointer; flex: 1;
+  }
+  .diff-src-select option { background: #1c1c1f; color: #e8e4dc; }
+  body.light .diff-src-select option { background: #e2e0d8; color: #1a1a18; }
+  .diff-source-body {
+    flex: 1 1 0; overflow-y: auto; padding: 10px 12px; min-height: 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    line-height: 1.6; color: var(--text2); position: relative;
+  }
+  .diff-source-body::-webkit-scrollbar { width: 4px; }
+  .diff-source-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .diff-drop-zone {
+    border: 2px dashed var(--border); border-radius: 6px;
+    padding: 20px; text-align: center; color: var(--text3);
+    font-size: 11px; cursor: pointer; transition: border-color .15s;
+    margin: 4px;
+  }
+  .diff-drop-zone.drag-over { border-color: var(--accent); color: var(--accent); }
+  .diff-drop-zone:hover { border-color: var(--text3); }
+  .diff-paste-area {
+    width: 100%; height: 100%; background: none; border: none;
+    color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; line-height: 1.6; resize: none; outline: none;
+    padding: 0;
+  }
+  .diff-paste-area::placeholder { color: var(--text3); }
+  #diff-left-preview, #diff-right-preview {
+    white-space: pre-wrap; word-break: break-word;
+    font-size: 11px; line-height: 1.6;
+  }
+  /* the actual diff render area (between/below) */
+  #diff-inner-handle {
+    display: none; height: 5px; cursor: ns-resize;
+    background: var(--border); flex-shrink: 0;
+    position: relative;
+  }
+  #diff-inner-handle:hover, #diff-inner-handle.dragging { background: var(--accent2); }
+  #diff-inner-handle::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    width: 30px; height: 2px; border-radius: 2px; background: var(--text3);
+  }
+  #diff-inner-handle.visible { display: block; }
+  #diff-render-wrap {
+    border-top: none;
+    flex: 0 0 var(--diff-render-h, 160px); overflow-y: auto;
+    padding: 8px 12px;
+    background: var(--surface2);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    line-height: 1.6; display: none; flex-shrink: 0;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #diff-render-wrap.visible { display: block; }
+  #diff-render-wrap::-webkit-scrollbar { width: 4px; }
+  #diff-render-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .diff-render-meta {
+    display: flex; gap: 16px; margin-bottom: 8px;
+    font-size: 10px; color: var(--text3);
+  }
+  .diff-render-meta .d-adds { color: #7ec87e; }
+  .diff-render-meta .d-dels { color: #d07878; }
+  /* commit bar */
+  #diff-commit-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0; height: 40px;
+  }
+  #diff-commit-bar .commit-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text3); flex: 1;
+  }
+  #diff-commit-bar .commit-label.pending { color: var(--accent); }
+  .commit-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    font-weight: 700; padding: 4px 12px; border-radius: 4px;
+    border: none; cursor: pointer; letter-spacing: .5px;
+  }
+  .commit-btn.left  { background: #8aabcc; color: #0d0d0f; }
+  .commit-btn.right { background: var(--accent2); color: #0d0d0f; }
+  .commit-btn.left:hover  { background: #a0c0dd; }
+  .commit-btn.right:hover { background: #8bb898; }
+  .commit-btn:disabled { opacity: .35; cursor: default; }
+  #diff-refresh-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    padding: 3px 10px; border-radius: 4px; background: var(--surface3);
+    border: 1px solid var(--border); color: var(--text2); cursor: pointer;
+  }
+  #diff-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #tb-diff.active { color: var(--accent); background: rgba(200,169,110,.15); }
+
+  /* ── ZEN MODE ── */
+  body.zen #sidebar        { display: none; }
+  body.zen #editor-toolbar { display: none; }
+  body.zen #statusbar      { display: none; }
+  body.zen #tag-wrap       { display: none; }
+  body.zen #find-bar       { display: none; }
+  body.zen #note-title-wrap input {
+    font-size: 28px; padding: 24px 48px 8px;
+    font-family: 'Playfair Display', serif;
+  }
+  body.zen #editor-wrap    { padding: 0 10%; }
+  body.zen #main           { background: var(--bg); }
+  #zen-exit-btn {
+    display: none; position: fixed; top: 12px; right: 16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text3); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; padding: 4px 10px; border-radius: 4px;
+    cursor: pointer; z-index: 999; letter-spacing: 1px;
+    transition: opacity .2s;
+  }
+  body.zen #zen-exit-btn   { display: block; }
+  #zen-exit-btn:hover      { color: var(--text); border-color: var(--accent); }
+
+  /* ── SIDEBAR RESIZE ── */
+  #sidebar-resize-handle {
+    width: 4px; cursor: ew-resize; flex-shrink: 0;
+    background: transparent; position: relative; z-index: 10;
+    transition: background .15s;
+  }
+  #sidebar-resize-handle:hover, #sidebar-resize-handle.dragging {
+    background: var(--accent);
+  }
+
   /* trash badge */
   .trash-badge { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--danger); background:rgba(192,96,96,.15); padding:1px 5px; border-radius:3px; }
 
@@ -575,7 +766,7 @@
     <div class="brand">CODEX <span>// NOTES</span></div>
     <div style="display:flex;gap:5px;align-items:center;">
       <button id="btn-theme" title="Toggle light/dark theme" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:4px;">☀</button>
-      <button id="btn-backup" title="Backup all notes" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:4px;" onclick="backupAllNotes()">💾</button>
+      <button id="btn-backup" title="Backup all notes" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:4px;">💾</button>
       <button id="btn-storage-diag" title="Storage diagnostic" style="background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:2px 4px;border-radius:4px;">⚙</button>
       <div class="templates-wrap">
         <button id="btn-template" title="New from template" style="background:none;border:1px solid var(--border);color:var(--text2);font-size:11px;cursor:pointer;padding:3px 7px;border-radius:4px;font-family:JetBrains Mono,monospace;">▾</button>
@@ -619,6 +810,8 @@
   </div>
 </div>
 
+<div id="sidebar-resize-handle"></div>
+
 <!-- MAIN -->
 <div id="main">
   <div id="editor-toolbar">
@@ -652,6 +845,7 @@
     <div class="tb-group">
       <button class="tb-btn" id="tb-find" title="Find &amp; Replace (Ctrl+H)">⌕</button>
       <button class="tb-btn" id="tb-history" title="Version history">⏱</button>
+      <button class="tb-btn" id="tb-diff" title="Toggle diff panel (⇄)">⇄</button>
       <button class="tb-btn" id="tb-linenum" title="Toggle line numbers">№</button>
       <button class="tb-btn" id="tb-lock" title="Lock / unlock note">🔒</button>
       <button class="tb-btn" id="tb-print" title="Print / Save as PDF">⎙</button>
@@ -689,6 +883,9 @@
     </div>
   </div>
 
+  <!-- Editor zone wraps editor + diff panel -->
+  <div id="editor-zone">
+
   <!-- Editor area -->
   <div id="editor-area" style="display:none;">
     <div id="note-title-wrap">
@@ -724,7 +921,93 @@
       <span class="sb-item" id="sb-storage-wrap" title="Storage usage">💾 <span id="sb-storage">—</span></span>
       <span class="sb-item" id="sb-status">READY</span>
     </div>
-  </div>
+  </div><!-- /editor-area -->
+
+
+  </div><!-- /editor-zone -->
+
+  <!-- Drag resize handle -->
+  <div id="diff-resize-handle" title="Drag to resize"></div>
+
+
+  <!-- Diff panel -->
+  <div id="diff-panel">
+    <div id="diff-toolbar">
+      <span class="diff-title">⇄ DIFF</span>
+      <button class="diff-mode-btn active" data-dmode="unified">Unified</button>
+      <button class="diff-mode-btn" data-dmode="side">Side by Side</button>
+      <span class="diff-spacer"></span>
+      <button id="diff-refresh-btn">↺ Run Diff</button>
+      <button class="tb-btn" id="diff-close-btn" style="margin-left:4px;" title="Close diff">✕</button>
+    </div>
+    <div id="diff-body">
+      <!-- Left source -->
+      <div class="diff-source" id="diff-left">
+        <div class="diff-source-header">
+          <label>LEFT</label>
+          <select class="diff-src-select" id="diff-left-src">
+            <option value="note">Current Note</option>
+            <option value="history">Note Version</option>
+            <option value="paste">Paste Text</option>
+            <option value="file">Drop File</option>
+          </select>
+          <select class="diff-src-select" id="diff-left-hist" style="display:none;max-width:200px;min-width:160px;">
+          </select>
+        </div>
+        <div class="diff-source-body" id="diff-left-body">
+          <div class="diff-drop-zone" id="diff-left-drop" style="display:none;">
+            Drop a text file here<br>
+            <span style="font-size:9px;color:var(--text3)">or click to browse</span>
+            <input type="file" id="diff-left-file" style="display:none;" accept=".txt,.md,.js,.ts,.py,.html,.css,.json,.xml,.yaml,.yml,.csv,.log,.sh,.ps1,.cs,.cpp,.c,.h,.rb,.go,.rs,.sql">
+          </div>
+          <textarea class="diff-paste-area" id="diff-left-paste" placeholder="Paste text here…" style="display:none;"></textarea>
+          <div id="diff-left-preview" style="white-space:pre-wrap;"></div>
+        </div>
+      </div>
+      <!-- Right source -->
+      <div class="diff-source" id="diff-right">
+        <div class="diff-source-header">
+          <label>RIGHT</label>
+          <select class="diff-src-select" id="diff-right-src">
+            <option value="history">Note Version</option>
+            <option value="note">Current Note</option>
+            <option value="paste">Paste Text</option>
+            <option value="file">Drop File</option>
+          </select>
+          <select class="diff-src-select" id="diff-right-hist" style="max-width:200px;min-width:160px;">
+          </select>
+        </div>
+        <div class="diff-source-body" id="diff-right-body">
+          <div class="diff-drop-zone" id="diff-right-drop" style="display:none;">
+            Drop a text file here<br>
+            <span style="font-size:9px;color:var(--text3)">or click to browse</span>
+            <input type="file" id="diff-right-file" style="display:none;" accept=".txt,.md,.js,.ts,.py,.html,.css,.json,.xml,.yaml,.yml,.csv,.log,.sh,.ps1,.cs,.cpp,.c,.h,.rb,.go,.rs,.sql">
+          </div>
+          <textarea class="diff-paste-area" id="diff-right-paste" placeholder="Paste text here…" style="display:none;"></textarea>
+          <div id="diff-right-preview" style="white-space:pre-wrap;"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Inner resize handle -->
+    <div id="diff-inner-handle"></div>
+
+    <!-- Diff render (unified or inline) -->
+    <div id="diff-render-wrap">
+      <div class="diff-render-meta">
+        <span>DIFF</span>
+        <span class="d-adds" id="diff-meta-adds"></span>
+        <span class="d-dels" id="diff-meta-dels"></span>
+      </div>
+      <div id="diff-render-content"></div>
+    </div>
+    <!-- Commit bar -->
+    <div id="diff-commit-bar">
+      <span class="commit-label" id="diff-commit-label">Choose a side to commit to the current note</span>
+      <button class="commit-btn left"  id="diff-commit-left"  disabled title="Replace current note with Left pane content">← Commit Left</button>
+      <button class="commit-btn right" id="diff-commit-right" disabled title="Replace current note with Right pane content">Commit Right →</button>
+    </div>
+  </div><!-- /diff-panel -->
+
 </div>
 
 <!-- Folder modal -->
@@ -779,7 +1062,7 @@
   </div>
 </div>
 
-<!-- Floating menus — body level, before script so getElementById works -->
+<!-- Floating menus - body level, before script so getElementById works -->
 <div id="export-menu" style="display:none;">
   <button class="em-item" data-fmt="md">Markdown (.md)</button>
   <button class="em-item" data-fmt="txt">Plain text (.txt)</button>
@@ -806,6 +1089,7 @@
 </div>
 
 <div id="note-link-popup"></div>
+<button id="zen-exit-btn" title="Exit zen mode (Ctrl+Shift+F)">EXIT ZEN ✕</button>
 
 <script>
 // ════════════════════════════════════════════════
@@ -815,7 +1099,7 @@ const DB_NAME      = 'codex_db';
 const DB_VERSION   = 1;
 const DRAFT_PREFIX = 'codex_draft_';
 const MAX_HISTORY  = 10;
-// Legacy localStorage keys — scanned on first load for migration
+// Legacy localStorage keys - scanned on first load for migration
 const LEGACY_LS_KEYS = ['codex_notes_v1', 'codex_notes_v2', 'codex_notes_v3'];
 
 let state = { notes:[], folders:['Personal','Work','Ideas'], activeNote:null, activeFolder:'all', dirty:false };
@@ -880,14 +1164,14 @@ function dbClear(storeName) {
 // ── Persist / Load ───────────────────────────────────────────────
 // Strategy: IndexedDB is primary (no size limit). localStorage is a
 // shadow backup written on every save. On load, if IDB is empty but
-// localStorage has data, restore automatically — this handles the
+// localStorage has data, restore automatically - this handles the
 // file:// origin case where Chrome may wipe IDB between sessions.
 const LS_BACKUP_KEY  = 'codex_backup';
 const FS_ENABLED_KEY = 'codex_fs_enabled';   // localStorage flag
 const FS_DATA_FILE   = 'codex-data.json';     // filename written to disk
 
 // ── File System Access Storage ────────────────────────────────────
-// Optional third storage layer — writes codex-data.json to a user-chosen
+// Optional third storage layer - writes codex-data.json to a user-chosen
 // folder on disk. Toggle via Storage Diagnostic panel.
 let _fsDirHandle  = null;  // directory FileSystemDirectoryHandle
 let _fsEnabled    = localStorage.getItem(FS_ENABLED_KEY) !== '0'; // on by default if handle exists
@@ -935,14 +1219,29 @@ async function fsPickFolder() {
     alert('File System Access API not supported in this browser.');
     return false;
   }
-  try {
-    const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'codex-data' });
-    await fsSaveHandle(handle);
-    return true;
-  } catch(e) {
-    if (e.name !== 'AbortError') console.error('[CODEX] fsPickFolder:', e);
-    return false;
+  async function tryPick() {
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'codex-data' });
+      await fsSaveHandle(handle);
+      return true;
+    } catch(e) {
+      if (e.name === 'AbortError') return false;
+      if (e.name === 'SecurityError' || (e.message||'').includes('system files')) {
+        alert(
+          'Chrome blocked that folder (system/protected path).\n\n' +
+          'Please pick a user folder such as:\n' +
+          '  Documents\\CodexNotes\n' +
+          '  Desktop\\Notes\n' +
+          '  D:\\MyNotes\n\n' +
+          'Create a dedicated folder anywhere under your user profile and pick that.'
+        );
+        return tryPick(); // open picker again
+      }
+      alert('Could not open folder: ' + (e.message || e.name));
+      return false;
+    }
   }
+  return tryPick();
 }
 
 async function fsWrite() {
@@ -979,13 +1278,13 @@ async function fsRead() {
 
 function lsBackupWrite() {
   try {
-    // Strip large body content for LS backup to stay under 5MB —
+    // Strip large body content for LS backup to stay under 5MB -
     // store titles/meta only; full bodies stay in IDB.
     // Actually write full data but catch quota errors gracefully.
     const payload = JSON.stringify({ notes: state.notes, folders: state.folders });
     localStorage.setItem(LS_BACKUP_KEY, payload);
   } catch(e) {
-    // Quota exceeded — write a metadata-only backup instead
+    // Quota exceeded - write a metadata-only backup instead
     try {
       const slim = state.notes.map(n => ({
         id:n.id, title:n.title, folder:n.folder, tags:n.tags,
@@ -1222,6 +1521,17 @@ function fmtDate(ts) {
 }
 function fmtTime(ts) { return new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }
 function textOnly(html) { const d=document.createElement('div'); d.innerHTML=html; return (d.textContent||d.innerText||'').replace(/\s+/g,' ').trim(); }
+// Like textOnly but preserves newlines - used for diff comparisons
+function textWithLines(html) {
+  const d = document.createElement('div');
+  // Insert newline markers before block elements
+  d.innerHTML = html
+    .replace(/<\/?(p|div|h[1-6]|li|br|tr|blockquote|pre)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '');
+  const text = (d.textContent || d.innerText || '');
+  // Collapse 3+ newlines to 2, trim
+  return text.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ').trim();
+}
 function wordCount(t) { return t.trim()?t.trim().split(/\s+/).length:0; }
 function relativeTime(ts) {
   const d=Date.now()-ts;
@@ -1517,7 +1827,7 @@ function tokenize(text) {
 }
 
 function lcs(a, b) {
-  // Standard LCS DP — returns length table
+  // Standard LCS DP - returns length table
   const m = a.length, n = b.length;
   const dp = Array.from({length: m+1}, () => new Uint16Array(n+1));
   for (let i = 1; i <= m; i++)
@@ -1713,7 +2023,7 @@ function showMenu(menuEl, btnEl) {
   document.querySelectorAll('#export-menu, #templates-menu').forEach(m => {
     m.style.display = 'none'; m.classList.remove('open');
   });
-  // getBoundingClientRect gives viewport coords — correct for position:fixed
+  // getBoundingClientRect gives viewport coords - correct for position:fixed
   const rect  = btnEl.getBoundingClientRect();
   const menuW = 190;
   // Align right edge of menu to right edge of button, clamp to viewport
@@ -2083,7 +2393,7 @@ function renderFolders() {
     const countParent = state.notes.filter(n=>n.folder===parentName&&!n.trashed).length;
 
     if (children.length === 0) {
-      // Simple folder — no children
+      // Simple folder - no children
       const btn = document.createElement('button');
       btn.className = 'folder-btn' + (state.activeFolder===parentName?' active':'');
       btn.innerHTML = `<span class="fi"><span class="${colorClass}">◆</span> ${parentName}</span><span class="folder-count">${countParent}</span>`;
@@ -2209,7 +2519,7 @@ async function reorderNote(draggedId, targetId, position) {
   const targetNote  = state.notes.find(n=>n.id===targetId);
   if (!draggedNote || !targetNote || draggedId===targetId) return;
 
-  // Never cross the pin boundary — pinned stays with pinned, unpinned with unpinned
+  // Never cross the pin boundary - pinned stays with pinned, unpinned with unpinned
   if (!!draggedNote.pinned !== !!targetNote.pinned) return;
 
   const targetIdx  = sorted.findIndex(n=>n.id===targetId);
@@ -2244,7 +2554,7 @@ function renderNoteList() {
     const div=document.createElement('div');
     div.className='note-item'+(state.activeNote?.id===n.id?' active':'')+(n.trashed?' trashed':'')+(n.locked?' locked':'');
     div.dataset.noteId = n.id;
-    // Full-text search snippet — show context around the match
+    // Full-text search snippet - show context around the match
     const q_search = $search.value.trim();
     let preview = '';
     if (q_search) {
@@ -2397,7 +2707,7 @@ function openNote(id) {
   $editor.innerHTML=note.body||''; activateNoteLinks(); activateChecklists(); setTimeout(applyHighlighting, 50);
   $noteFolderSel.value=note.folder||'';
   renderTags(); updateStats(); renderNoteList();
-  trackRecentNote(id); renderRecentNotes(); $noteTitle.focus(); markStatus('LOADED'); hideDraftIndicator(); applyLockState(); setTimeout(applyLineNumbers, 50);
+  trackRecentNote(id); renderRecentNotes(); $noteTitle.focus(); markStatus('LOADED'); hideDraftIndicator(); applyLockState(); setTimeout(applyLineNumbers, 50); syncDiffPanelToNote(id);
   // close find bar if open
   if($findBar.classList.contains('open')) closeFindBar();
   setTimeout(()=>checkDraftBanner(id),50);
@@ -2513,7 +2823,7 @@ function rebuildGutter() {
 
   // block.offsetTop is relative to #editor-content-wrap (which has position:relative).
   // #editor itself has no position so blocks offset from content-wrap directly.
-  // No adjustment needed — offsetTop is already correct.
+  // No adjustment needed - offsetTop is already correct.
 
   if (!allBlocks.length) {
     const top = 24; // padding-top of editor-content-wrap
@@ -2570,7 +2880,7 @@ document.getElementById('tb-linenum').addEventListener('click', () => {
   applyLineNumbers();
 });
 
-// Debounced rebuild — avoids thrashing on rapid keystrokes
+// Debounced rebuild - avoids thrashing on rapid keystrokes
 let _lnTimer = null;
 function scheduleGutterRebuild() {
   if (!lineNumbersOn) return;
@@ -2594,7 +2904,7 @@ document.getElementById('btn-storage-diag').addEventListener('click', e => {
   e.stopPropagation(); // prevent document click handlers from immediately closing it
   showStorageDiag();
 });
-// storage diag modal close — wired after DOM ready in init
+// storage diag modal close - wired after DOM ready in init
 
 document.getElementById('btn-unlock-note').addEventListener('click', () => toggleNoteLock());
 
@@ -2703,7 +3013,7 @@ function insertNoteLink(note) {
   scheduleDraft();
 }
 
-// Main input handler — detect [[ and update popup
+// Main input handler - detect [[ and update popup
 function handleNLInput() {
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount) { if (_nlActive) hideNLPopup(); return; }
@@ -2726,7 +3036,7 @@ function handleNLInput() {
     }
   }
 
-  // Collect text BEFORE cursor — may span multiple sibling text nodes
+  // Collect text BEFORE cursor - may span multiple sibling text nodes
   // Walk left siblings of the current text node to catch split [[ across nodes
   let before = node.textContent.slice(0, offset);
   let sibling = node.previousSibling;
@@ -2900,7 +3210,7 @@ function highlightBlock(pre) {
     return;
   }
 
-  // Use autoloader if available — it fetches the grammar then fires the callback
+  // Use autoloader if available - it fetches the grammar then fires the callback
   if (Prism.plugins && Prism.plugins.autoloader) {
     // The autoloader loads grammar then calls highlightElement internally
     // We need to ensure grammar is loaded first
@@ -2910,12 +3220,12 @@ function highlightBlock(pre) {
       try { Prism.highlightElement(code); } catch(e) {}
       buildCodeHeader(pre, code);
     }, () => {
-      // Grammar not found — try highlighting anyway with what's loaded
+      // Grammar not found - try highlighting anyway with what's loaded
       try { Prism.highlightElement(code); } catch(e) {}
       buildCodeHeader(pre, code);
     });
   } else {
-    // Autoloader not available — highlight synchronously with what's loaded
+    // Autoloader not available - highlight synchronously with what's loaded
     try { Prism.highlightElement(code); } catch(e) {}
     buildCodeHeader(pre, code);
   }
@@ -2923,7 +3233,7 @@ function highlightBlock(pre) {
 
 function applyHighlighting() {
   if (!window.Prism) {
-    // Prism not loaded yet — retry once it is
+    // Prism not loaded yet - retry once it is
     setTimeout(applyHighlighting, 300);
     return;
   }
@@ -3132,6 +3442,552 @@ $editor.addEventListener('keydown', e => {
 
 $noteTitle.addEventListener('input',()=>{ state.dirty=true; scheduleDraft(); });
 
+
+// ════════════════════════════════════════════════
+// DIFF PANEL
+// ════════════════════════════════════════════════
+
+// Per-note diff session state
+const diffInstances = {};   // keyed by note id
+
+function getDiffInstance(noteId) {
+  if (!diffInstances[noteId]) {
+    diffInstances[noteId] = {
+      open:           false,
+      mode:           'unified',  // 'unified' | 'side'
+      leftSrc:        'note',
+      leftContent:    '',
+      leftLabel:      'Current Note',
+      leftHistIdx:    0,
+      rightSrc:       'history',
+      rightContent:   '',
+      rightLabel:     '',
+      rightHistIdx:   0,
+      pendingCommit:  null,       // null | 'left' | 'right'
+    };
+  }
+  return diffInstances[noteId];
+}
+
+// ── DOM refs ──
+const $diffPanel        = document.getElementById('diff-panel');
+const $editorZone       = document.getElementById('editor-zone');
+const $diffLeftSrc      = document.getElementById('diff-left-src');
+const $diffRightSrc     = document.getElementById('diff-right-src');
+const $diffLeftHist     = document.getElementById('diff-left-hist');
+const $diffRightHist    = document.getElementById('diff-right-hist');
+const $diffLeftBody     = document.getElementById('diff-left-body');
+const $diffRightBody    = document.getElementById('diff-right-body');
+const $diffLeftDrop     = document.getElementById('diff-left-drop');
+const $diffRightDrop    = document.getElementById('diff-right-drop');
+const $diffLeftPaste    = document.getElementById('diff-left-paste');
+const $diffRightPaste   = document.getElementById('diff-right-paste');
+const $diffLeftPreview  = document.getElementById('diff-left-preview');
+const $diffRightPreview = document.getElementById('diff-right-preview');
+const $diffRenderWrap   = document.getElementById('diff-render-wrap');
+const $diffRenderContent= document.getElementById('diff-render-content');
+const $diffMetaAdds     = document.getElementById('diff-meta-adds');
+const $diffMetaDels     = document.getElementById('diff-meta-dels');
+const $diffCommitBar    = document.getElementById('diff-commit-bar');
+const $diffCommitLabel  = document.getElementById('diff-commit-label');
+const $diffCommitLeft   = document.getElementById('diff-commit-left');
+const $diffCommitRight  = document.getElementById('diff-commit-right');
+const $tbDiff           = document.getElementById('tb-diff');
+const $diffLeftFile     = document.getElementById('diff-left-file');
+const $diffRightFile    = document.getElementById('diff-right-file');
+
+function getCurrentNoteText() {
+  return textWithLines($editor.innerHTML);
+}
+
+// Build history dropdown for a note
+function buildHistoryOptions(noteId, selectEl) {
+  selectEl.innerHTML = '';
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note?.history?.length) {
+    const opt = document.createElement('option');
+    opt.textContent = '(no history)'; opt.disabled = true;
+    selectEl.appendChild(opt);
+    return;
+  }
+  note.history.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `v${note.history.length - i} — ${fmtDate(v.ts)} (${wordCount(textOnly(v.body||''))}w)`;
+    selectEl.appendChild(opt);
+  });
+}
+
+function getHistoryText(noteId, idx) {
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note?.history?.[idx]) return '';
+  return textWithLines(note.history[idx].body || '');
+}
+
+function getHistoryLabel(noteId, idx) {
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note?.history?.[idx]) return '';
+  return `v${note.history.length - idx} — ${fmtDate(note.history[idx].ts)}`;
+}
+
+// Resolve current content for a side
+function resolveSideContent(side, inst, noteId) {
+  const src     = side === 'left' ? inst.leftSrc  : inst.rightSrc;
+  const histIdx = side === 'left' ? inst.leftHistIdx : inst.rightHistIdx;
+  if (src === 'note')    return getCurrentNoteText();
+  if (src === 'history') return getHistoryText(noteId, histIdx);
+  if (src === 'paste')   return side === 'left' ? $diffLeftPaste.value : $diffRightPaste.value;
+  if (src === 'file')    return side === 'left' ? inst.leftContent : inst.rightContent;
+  return '';
+}
+
+function resolveSideLabel(side, inst, noteId) {
+  const src      = side === 'left' ? inst.leftSrc  : inst.rightSrc;
+  const histSel  = side === 'left' ? $diffLeftHist : $diffRightHist;
+  if (src === 'note')    return 'Current Note';
+  if (src === 'history') {
+    // Read directly from the dropdown's selected option text - always accurate
+    const selOpt = histSel.options[histSel.selectedIndex];
+    return selOpt ? selOpt.textContent : 'Version';
+  }
+  if (src === 'paste')   return 'Pasted Text';
+  if (src === 'file')    return side === 'left' ? inst.leftLabel : inst.rightLabel;
+  return '';
+}
+
+function updateSidePaneUI(side, inst) {
+  const src      = side === 'left' ? inst.leftSrc  : inst.rightSrc;
+  const drop     = side === 'left' ? $diffLeftDrop  : $diffRightDrop;
+  const paste    = side === 'left' ? $diffLeftPaste : $diffRightPaste;
+  const preview  = side === 'left' ? $diffLeftPreview : $diffRightPreview;
+  const hist     = side === 'left' ? $diffLeftHist  : $diffRightHist;
+  const content  = state.activeNote ? resolveSideContent(side, inst, state.activeNote.id) : '';
+
+  drop.style.display    = src === 'file'    ? 'block' : 'none';
+  paste.style.display   = src === 'paste'   ? 'block' : 'none';
+  preview.style.display = (src === 'note' || src === 'history') ? 'block' : 'none';
+  hist.style.display    = src === 'history' ? 'inline-block' : 'none';
+
+  if (src === 'note' || src === 'history') {
+    // Show full content - use textContent to safely escape HTML
+    // (runDiff will replace with innerHTML for side-by-side highlights)
+    preview.textContent = content;
+  }
+}
+
+// ── Source change handlers ──
+function onSrcChange(side) {
+  if (!state.activeNote) return;
+  const inst = getDiffInstance(state.activeNote.id);
+  const sel  = side === 'left' ? $diffLeftSrc : $diffRightSrc;
+  if (side === 'left')  inst.leftSrc  = sel.value;
+  else                  inst.rightSrc = sel.value;
+  updateSidePaneUI(side, inst);
+  refreshCommitTitles();
+  runDiff(); // auto-rerun on source change
+}
+
+$diffLeftSrc.addEventListener('change',  () => onSrcChange('left'));
+$diffRightSrc.addEventListener('change', () => onSrcChange('right'));
+
+$diffLeftHist.addEventListener('change', () => {
+  if (!state.activeNote) return;
+  const inst = getDiffInstance(state.activeNote.id);
+  inst.leftHistIdx = parseInt($diffLeftHist.value) || 0;
+  updateSidePaneUI('left', inst);
+  refreshCommitTitles();
+  runDiff(); // auto-rerun on version change
+});
+
+$diffRightHist.addEventListener('change', () => {
+  if (!state.activeNote) return;
+  const inst = getDiffInstance(state.activeNote.id);
+  inst.rightHistIdx = parseInt($diffRightHist.value) || 0;
+  updateSidePaneUI('right', inst);
+  refreshCommitTitles();
+  runDiff(); // auto-rerun on version change
+});
+
+// Paste area changes - update pane and rerun diff after brief pause
+$diffLeftPaste.addEventListener('input', () => {
+  if (!state.activeNote) return;
+  updateSidePaneUI('left', getDiffInstance(state.activeNote.id));
+  clearTimeout($diffLeftPaste._diffTimer);
+  $diffLeftPaste._diffTimer = setTimeout(runDiff, 400);
+});
+$diffRightPaste.addEventListener('input', () => {
+  if (!state.activeNote) return;
+  updateSidePaneUI('right', getDiffInstance(state.activeNote.id));
+  clearTimeout($diffRightPaste._diffTimer);
+  $diffRightPaste._diffTimer = setTimeout(runDiff, 400);
+});
+
+
+function buildSideBySideDiff(leftText, rightText) {
+  // Build side-by-side: left shows deletions highlighted, right shows additions highlighted
+  const aTokens = tokenize(leftText);
+  const bTokens = tokenize(rightText);
+  const diff    = buildDiff(aTokens, bTokens);
+
+  let leftHTML = '', rightHTML = '';
+  for (const d of diff) {
+    const t = d.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (d.type === 'del') {
+      leftHTML  += `<span class="diff-del">${t}</span>`;
+      // right gets a blank space placeholder to keep alignment loose
+    } else if (d.type === 'add') {
+      rightHTML += `<span class="diff-add">${t}</span>`;
+      // left gets placeholder
+    } else {
+      leftHTML  += `<span class="diff-unchanged">${t}</span>`;
+      rightHTML += `<span class="diff-unchanged">${t}</span>`;
+    }
+  }
+  // Count
+  const adds = diff.filter(d=>d.type==='add').length;
+  const dels = diff.filter(d=>d.type==='del').length;
+  return { leftHTML, rightHTML, adds, dels };
+}
+
+function runDiff() {
+  if (!state.activeNote) return;
+  const noteId = state.activeNote.id;
+  const inst   = getDiffInstance(noteId);
+
+  // Always refresh source pane previews before diffing
+  updateSidePaneUI('left',  inst);
+  updateSidePaneUI('right', inst);
+
+  const leftText  = resolveSideContent('left',  inst, noteId);
+  const rightText = resolveSideContent('right', inst, noteId);
+  const leftLabel = resolveSideLabel('left',  inst, noteId);
+  const rightLabel= resolveSideLabel('right', inst, noteId);
+
+  if (!leftText && !rightText) {
+    $diffRenderWrap.classList.remove('visible');
+    $diffInnerHandle.classList.remove('visible');
+    return;
+  }
+
+  const mode = inst.mode || 'unified';
+
+  if (mode === 'side') {
+    // Side-by-side: overlay highlights directly in the source preview panes
+    const { leftHTML, rightHTML, adds, dels } = buildSideBySideDiff(leftText, rightText);
+    document.getElementById('diff-left-preview').innerHTML  = leftHTML  || '<span style="color:var(--text3)">(empty)</span>';
+    document.getElementById('diff-right-preview').innerHTML = rightHTML || '<span style="color:var(--text3)">(empty)</span>';
+    // Show meta in render wrap
+    $diffRenderContent.innerHTML = `<span style="color:var(--text3)">Side-by-side: deletions highlighted in left pane · additions highlighted in right pane</span>`;
+    $diffMetaAdds.textContent = `+${adds} words added`;
+    $diffMetaDels.textContent = `−${dels} words removed`;
+    $diffRenderWrap.classList.add('visible');
+    $diffInnerHandle.classList.add('visible');
+    applyDiffRenderH(getDiffRenderH());
+  } else {
+    // Unified diff in render area
+    // Reset previews to plain text
+    document.getElementById('diff-left-preview').textContent  = leftText;
+    document.getElementById('diff-right-preview').textContent = rightText;
+    const { html: diffHTML, adds, dels } = renderDiff(leftText, rightText);
+    $diffRenderContent.innerHTML = diffHTML || '<span style="color:var(--accent2)">✓ No differences found</span>';
+    $diffMetaAdds.textContent = `+${adds} in right`;
+    $diffMetaDels.textContent = `−${dels} from left`;
+    $diffRenderWrap.classList.add('visible');
+    $diffInnerHandle.classList.add('visible');
+    applyDiffRenderH(getDiffRenderH());
+  }
+
+  $diffCommitLeft.disabled  = false;
+  $diffCommitRight.disabled = false;
+  updateCommitTitles(leftLabel, rightLabel);
+  $diffCommitLabel.textContent = `Commit: ← replace note with ${leftLabel} | replace note with ${rightLabel} →`;
+  $diffCommitLabel.classList.remove('pending');
+  inst.pendingCommit = null;
+  updateCommitBar(inst, leftLabel, rightLabel);
+}
+
+function updateCommitTitles(leftLabel, rightLabel) {
+  $diffCommitLeft.title  = `COMMIT LEFT — replace current note with:\n${leftLabel}\n\nClick once to stage, click again to confirm.`;
+  $diffCommitRight.title = `COMMIT RIGHT — replace current note with:\n${rightLabel}\n\nClick once to stage, click again to confirm.`;
+}
+
+function refreshCommitTitles() {
+  if (!state.activeNote) return;
+  const noteId = state.activeNote.id;
+  const inst   = getDiffInstance(noteId);
+  // Sync instance hist indices from actual dropdown values before resolving labels
+  if (inst.leftSrc  === 'history') inst.leftHistIdx  = parseInt($diffLeftHist.value)  || 0;
+  if (inst.rightSrc === 'history') inst.rightHistIdx = parseInt($diffRightHist.value) || 0;
+  const leftLabel  = resolveSideLabel('left',  inst, noteId);
+  const rightLabel = resolveSideLabel('right', inst, noteId);
+  updateCommitTitles(leftLabel, rightLabel);
+}
+
+function updateCommitBar(inst, leftLabel, rightLabel) {
+  if (inst.pendingCommit) {
+    const side = inst.pendingCommit;
+    $diffCommitLabel.textContent = `⚠ UNCOMMITTED — click Confirm to replace note with ${side === 'left' ? leftLabel : rightLabel}`;
+    $diffCommitLabel.classList.add('pending');
+  }
+}
+
+// ── Open/close ──
+// ── Resize handle ──
+const $diffResizeHandle = document.getElementById('diff-resize-handle');
+let _diffResizing = false;
+let _diffStartY   = 0;
+let _diffStartEdH = 0;
+let _diffSplitH   = 0;
+
+// ── Split pane resize - dead simple ──
+// Editor zone gets an explicit px height.
+// Diff panel (flex:1 1 0) fills everything below it automatically.
+// Drag DOWN = editor taller = diff shorter.
+// Drag UP   = editor shorter = diff taller.
+
+function getEditorSplitPx() {
+  return parseInt(localStorage.getItem('codex_diff_edpx') || '0') || 0;
+}
+
+function applyEditorSplitPx(px) {
+  // Available height = everything inside #main that the split shares
+  const mainEl = document.getElementById('main');
+  const avail  = mainEl.clientHeight - 6; // 6px = handle
+  px = Math.max(60, Math.min(avail - 150, px));
+  $editorZone.style.flex   = '0 0 ' + px + 'px';
+  $editorZone.style.height = px + 'px';
+  localStorage.setItem('codex_diff_edpx', px);
+}
+
+function clearEditorSplitPx() {
+  $editorZone.style.flex   = '';
+  $editorZone.style.height = '';
+}
+
+$diffResizeHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  _diffResizing = true;
+  _diffStartY   = e.clientY;
+  _diffStartEdH = $editorZone.getBoundingClientRect().height;
+  $diffResizeHandle.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor     = 'ns-resize';
+});
+document.addEventListener('mousemove', e => {
+  if (!_diffResizing) return;
+  applyEditorSplitPx(_diffStartEdH + (e.clientY - _diffStartY));
+});
+document.addEventListener('mouseup', () => {
+  if (!_diffResizing) return;
+  _diffResizing = false;
+  $diffResizeHandle.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  document.body.style.cursor     = '';
+});
+
+function openDiffPanel() {
+  if (!state.activeNote) return;
+  const noteId = state.activeNote.id;
+  const inst   = getDiffInstance(noteId);
+  inst.open    = true;
+
+  // Set initial editor height in pixels
+  const savedPx = getEditorSplitPx();
+  if (savedPx > 0) {
+    applyEditorSplitPx(savedPx);
+  } else {
+    const mainH = document.getElementById('main').clientHeight;
+    applyEditorSplitPx(Math.round((mainH - 6) * 0.55));
+  }
+
+  $diffPanel.classList.add('open');
+  $diffResizeHandle.classList.add('open');
+  $editorZone.classList.add('diff-open');
+  $tbDiff.classList.add('active');
+
+  buildHistoryOptions(noteId, $diffLeftHist);
+  buildHistoryOptions(noteId, $diffRightHist);
+  $diffLeftSrc.value  = inst.leftSrc;
+  $diffRightSrc.value = inst.rightSrc;
+  updateSidePaneUI('left',  inst);
+  updateSidePaneUI('right', inst);
+  runDiff();
+}
+
+function closeDiffPanel() {
+  if (state.activeNote) getDiffInstance(state.activeNote.id).open = false;
+  $diffPanel.classList.remove('open');
+  $diffResizeHandle.classList.remove('open');
+  $editorZone.classList.remove('diff-open');
+  clearEditorSplitPx();
+  $tbDiff.classList.remove('active');
+}
+
+function toggleDiffPanel() {
+  if ($diffPanel.classList.contains('open')) closeDiffPanel();
+  else openDiffPanel();
+}
+
+// ── Toolbar toggle ──
+$tbDiff.addEventListener('click', toggleDiffPanel);
+
+// ── Close button ──
+document.getElementById('diff-close-btn').addEventListener('click', closeDiffPanel);
+
+// ── Mode toggle ──
+document.querySelectorAll('.diff-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (state.activeNote) {
+      getDiffInstance(state.activeNote.id).mode = btn.dataset.dmode;
+      runDiff(); // re-render in new mode immediately
+    }
+  });
+});
+
+// ── Refresh button ──
+document.getElementById('diff-refresh-btn').addEventListener('click', runDiff);
+
+
+
+// ── Inner diff panel resize (source panes vs diff render area) ──
+const $diffInnerHandle = document.getElementById('diff-inner-handle');
+let _innerResizing  = false;
+let _innerStartY    = 0;
+let _innerStartRH   = 0;
+
+function getDiffRenderH() {
+  return parseInt(localStorage.getItem('codex_diff_renderh') || '160');
+}
+function applyDiffRenderH(px) {
+  px = Math.max(60, Math.min(400, px));
+  localStorage.setItem('codex_diff_renderh', px);
+  document.documentElement.style.setProperty('--diff-render-h', px + 'px');
+  return px;
+}
+
+$diffInnerHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  _innerResizing  = true;
+  _innerStartY    = e.clientY;
+  _innerStartRH   = getDiffRenderH();
+  $diffInnerHandle.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor     = 'ns-resize';
+});
+document.addEventListener('mousemove', e => {
+  if (!_innerResizing) return;
+  // drag UP = render area taller (negative delta means mouse went up)
+  applyDiffRenderH(_innerStartRH - (e.clientY - _innerStartY));
+});
+document.addEventListener('mouseup', e => {
+  if (!_innerResizing) return;
+  _innerResizing = false;
+  $diffInnerHandle.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  document.body.style.cursor     = '';
+});
+
+$diffCommitLeft.addEventListener('click',  () => requestCommit('left'));
+$diffCommitRight.addEventListener('click', () => requestCommit('right'));
+
+// ── Sync diff panel when switching notes ──
+function syncDiffPanelToNote(noteId) {
+  if (!$diffPanel.classList.contains('open')) return;
+  const inst = getDiffInstance(noteId);
+
+  // Always reset to sensible defaults on every note switch
+  // (user can change sources manually after, but we don't carry over
+  //  source TYPE between notes since it causes stale/confusing state)
+  inst.leftSrc      = 'note';
+  inst.rightSrc     = 'history';
+  inst.leftHistIdx  = 0;
+  inst.rightHistIdx = 0;
+  inst.open         = true;
+
+  // Rebuild history dropdowns for this note
+  buildHistoryOptions(noteId, $diffLeftHist);
+  buildHistoryOptions(noteId, $diffRightHist);
+  $diffLeftSrc.value           = 'note';
+  $diffRightSrc.value          = 'history';
+  $diffLeftHist.selectedIndex  = 0;
+  $diffRightHist.selectedIndex = 0;
+  $diffLeftHist.style.display  = 'none'; // 'note' src hides hist selector
+  $diffRightHist.style.display = 'inline-block';
+
+  updateSidePaneUI('left',  inst);
+  updateSidePaneUI('right', inst);
+  refreshCommitTitles();
+
+  $diffCommitLeft.disabled  = false;
+  $diffCommitRight.disabled = false;
+  $diffCommitLabel.textContent = 'Run diff, then choose a side to commit';
+  $diffCommitLabel.classList.remove('pending');
+  inst.pendingCommit = null;
+
+  // Defer runDiff so editor DOM is fully settled and we confirm
+  // the note hasn't changed again (fast clicking protection)
+  setTimeout(() => {
+    if (state.activeNote && state.activeNote.id === noteId) runDiff();
+  }, 80);
+}
+
+// ════════════════════════════════════════════════
+// ZEN MODE
+// ════════════════════════════════════════════════
+let _zenMode = false;
+
+function toggleZen() {
+  _zenMode = !_zenMode;
+  document.body.classList.toggle('zen', _zenMode);
+  if (_zenMode) markStatus('ZEN MODE — Ctrl+Shift+F to exit');
+  else markStatus('READY');
+}
+
+document.getElementById('zen-exit-btn').addEventListener('click', toggleZen);
+
+// ════════════════════════════════════════════════
+// SIDEBAR RESIZE
+// ════════════════════════════════════════════════
+const $sidebarEl       = document.getElementById('sidebar');
+const $sidebarHandle   = document.getElementById('sidebar-resize-handle');
+let _sbarResizing      = false;
+let _sbarStartX        = 0;
+let _sbarStartW        = 0;
+
+function getSidebarW() {
+  return parseInt(localStorage.getItem('codex_sidebar_w') || '260');
+}
+function applySidebarW(px) {
+  px = Math.max(180, Math.min(480, px));
+  localStorage.setItem('codex_sidebar_w', px);
+  $sidebarEl.style.width    = px + 'px';
+  $sidebarEl.style.minWidth = px + 'px';
+  return px;
+}
+
+$sidebarHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  _sbarResizing = true;
+  _sbarStartX   = e.clientX;
+  _sbarStartW   = $sidebarEl.getBoundingClientRect().width;
+  $sidebarHandle.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor     = 'ew-resize';
+});
+document.addEventListener('mousemove', e => {
+  if (!_sbarResizing) return;
+  applySidebarW(_sbarStartW + (e.clientX - _sbarStartX));
+});
+document.addEventListener('mouseup', () => {
+  if (!_sbarResizing) return;
+  _sbarResizing = false;
+  $sidebarHandle.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  document.body.style.cursor     = '';
+});
+
 // ── Unified document click handler (close all floating UI) ──
 document.addEventListener('click', e => {
   // Close export menu
@@ -3217,13 +4073,7 @@ document.addEventListener('dragover', e=>{
 // ════════════════════════════════════════════════
 // UNSAVED CHANGES WARNING ON CLOSE
 // ════════════════════════════════════════════════
-window.addEventListener('beforeunload', e => {
-  if (state.dirty && state.activeNote) {
-    e.preventDefault();
-    e.returnValue = 'You have unsaved changes. Leave anyway?';
-    return e.returnValue;
-  }
-});
+
 
 // ════════════════════════════════════════════════
 // NOTE LOCK
@@ -3419,6 +4269,7 @@ async function showStorageDiag() {
   // ── IndexedDB status ──
   out += `<div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">`;
   out += `<div style="color:var(--accent);font-weight:700;margin-bottom:6px;">IndexedDB — codex_db</div>`;
+  out += `<div style="color:var(--text3);font-size:10px;margin-bottom:6px;">Origin: <b style="color:var(--text2)">${location.origin}</b> &nbsp;·&nbsp; Notes here are isolated to this origin</div>`;
   if (_db) {
     const idbNotes = await dbGetAll('notes');
     const trashed  = idbNotes.filter(n=>n.trashed).length;
@@ -3474,9 +4325,17 @@ async function showStorageDiag() {
   out += `<div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">`;
   out += `<div style="color:var(--accent);font-weight:700;margin-bottom:6px;">File System Storage <span style="font-size:9px;color:var(--text3);font-weight:400;">(most reliable for local files)</span></div>`;
   const fsAvail = 'showDirectoryPicker' in window;
+  const isWebOrigin = location.protocol === 'https:' || (location.protocol === 'http:' && !location.hostname.match(/^(localhost|127\.|0\.0\.0)/));
   if (!fsAvail) {
     out += `<div style="color:var(--danger)">⚠ File System Access API not supported in this browser.</div>`;
-  } else if (_fsDirHandle) {
+  } else if (isWebOrigin) {
+    out += `<div style="color:var(--accent2);margin-bottom:6px;">✓ Running from web server — File System Access works but pick a user folder (not a system/root path).</div>`;
+    out += `<div style="color:var(--text3);font-size:10px;margin-bottom:8px;">Pick any folder under your user profile, e.g. <b style="color:var(--text2)">Documents\\CodexNotes</b> or <b style="color:var(--text2)">Desktop\\Notes</b></div>`;
+    if (!_fsDirHandle) {
+      out += `<button id="btn-fs-enable" style="background:var(--accent);color:#0d0d0f;border:none;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:4px 14px;border-radius:4px;cursor:pointer;">PICK FOLDER &amp; ENABLE</button>`;
+    }
+  }
+  if (fsAvail && _fsDirHandle) {
     const fsOn = _fsEnabled;
     out += `<div style="color:${fsOn?'var(--accent2)':'var(--text3)'}">● ${fsOn ? 'ENABLED' : 'DISABLED'}</div>`;
     out += `<div style="margin-top:4px;">Folder: <b style="color:var(--text)">${_fsDirHandle.name}</b></div>`;
@@ -3687,7 +4546,7 @@ function kbClearFocus() {
   _kbFocusIdx = -1;
 }
 
-// Restore kb focus after list renders — called directly from renderNoteList
+// Restore kb focus after list renders - called directly from renderNoteList
 function kbRestoreFocus() {
   if (_kbFocusIdx >= 0) {
     const items = kbGetItems();
@@ -3698,7 +4557,7 @@ function kbRestoreFocus() {
   }
 }
 
-// Keyboard handler — fires when sidebar search or note list has focus
+// Keyboard handler - fires when sidebar search or note list has focus
 // Also fires globally when editor is NOT focused (so you can nav without clicking sidebar)
 ;
 
@@ -3780,10 +4639,14 @@ function renderAll() { renderFolders(); renderSortBar(); renderNoteList(); rende
 async function init() {
   await loadState();
   applyTheme();
+  applySidebarW(getSidebarW()); // restore saved sidebar width
   renderAll();
   showWelcome();
   updateStorageIndicator();
   await restoreBackupDirHandle();
+  // Init diff split variable
+  // diff panel resize uses pixel inline styles set by JS
+  document.documentElement.style.setProperty('--diff-render-h', getDiffRenderH() + 'px');
   // Wire storage diag modal close button (DOM guaranteed ready here)
   const diagModal = document.getElementById('storage-diag-modal');
   const diagClose = document.getElementById('diag-close-btn');
@@ -3795,6 +4658,18 @@ async function init() {
   if (diagClose) diagClose.addEventListener('click', () => {
     document.getElementById('storage-diag-modal').style.display = 'none';
   });
+  // Storage diag action buttons
+  const diagReload = document.getElementById('diag-reload-btn');
+  if (diagReload) diagReload.addEventListener('click', diagForceReload);
+  const diagExport = document.getElementById('diag-export-btn');
+  if (diagExport) diagExport.addEventListener('click', diagExportRaw);
+  const diagBkpFolder = document.getElementById('diag-backup-folder-btn');
+  if (diagBkpFolder) diagBkpFolder.addEventListener('click', diagPickBackupFolder);
+  const diagClear = document.getElementById('diag-clear-btn');
+  if (diagClear) diagClear.addEventListener('click', diagClearAll);
+  // Backup button
+  const backupBtn = document.getElementById('btn-backup');
+  if (backupBtn) backupBtn.addEventListener('click', backupAllNotes);
 }
 init();
 </script>
@@ -3810,10 +4685,10 @@ init();
     </div>
     <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
       <button class="btn-cancel" id="diag-close-btn">Close</button>
-      <button class="btn-primary" onclick="diagForceReload()">&#8634; Reload from Storage</button>
-      <button class="btn-primary" style="background:var(--accent2);" onclick="diagExportRaw()">&#8595; Export Raw JSON</button>
-      <button class="btn-primary" onclick="diagPickBackupFolder()">&#128193; Set Backup Folder</button>
-      <button class="btn-danger" onclick="diagClearAll()" style="margin-left:auto;">&#9888; Clear All Data</button>
+      <button class="btn-primary" id="diag-reload-btn">&#8634; Reload from Storage</button>
+      <button class="btn-primary" style="background:var(--accent2);" id="diag-export-btn">&#8595; Export Raw JSON</button>
+      <button class="btn-primary" id="diag-backup-folder-btn">&#128193; Set Backup Folder</button>
+      <button class="btn-danger" id="diag-clear-btn" style="margin-left:auto;">&#9888; Clear All Data</button>
     </div>
   </div>
 </div>
